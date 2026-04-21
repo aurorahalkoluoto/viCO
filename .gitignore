@@ -1,0 +1,18 @@
+# HPC / bioinformatics
+*.h5ad
+*.rds
+*.loom
+*.bam
+*.bai
+*.fastq
+*.fq
+*.csv
+*.tsv
+
+# caches
+__pycache__/
+*.pyc
+
+# HPC job outputs
+*.out
+*.err
