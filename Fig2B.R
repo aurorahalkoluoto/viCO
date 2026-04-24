@@ -1,3 +1,5 @@
+#Fig 2B
+
 library(Seurat)
 library(ggplot2)
 library(dplyr)
@@ -7,7 +9,7 @@ library(viridis)
 library(ggrepel)
 
 
-# Käytetään Seurat-objektia 'all' ja sctype_pred annotaatiota
+
 
 markers_list <- list( 
   ChP_epithelial = c("TTR", "KRT18", "KCNJ13"), 
@@ -25,7 +27,7 @@ markers_list <- list(
   
 )
 
-# DotPlot
+
 marker_vector <- unlist(markers_list, use.names = FALSE)
 marker_levels <- unique(marker_vector)
 
@@ -38,19 +40,17 @@ Idents(all) <- "sctype_pred"
 dp <- DotPlot(all, features = marker_levels)
 dp_data <- dp$data
 
-# Y-akseli factoriksi markers_listin järjestyksessä
+
 dp_data$gene <- factor(
   dp_data$features.plot,
-  levels = rev(marker_levels)   # tärkeä: ggplot y-akseli
+  levels = rev(marker_levels)   
 )
 
-# Laske poikkiviivat solutyyppien väliin (3 geeniä per ryhmä)
-n_genes <- nrow(dp_data)  # tai length(genes), riippuen datasta
+
+n_genes <- nrow(dp_data)  
 
 hlines <- seq(3.5, n_genes - 0.5, by = 3)
 
-
-# Piirrä DotPlot
 
 p <- ggplot(dp_data, aes(x = id, y = gene)) +
   geom_point(aes(size = pct.exp, colour = avg.exp)) +
@@ -80,5 +80,4 @@ p <- ggplot(dp_data, aes(x = id, y = gene)) +
 
 p
 
-ggsave("markers_v7.png", plot = p, width = 8, height = 12, dpi = 300)
 

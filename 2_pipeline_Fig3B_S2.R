@@ -1,54 +1,38 @@
 library(Seurat)
 library(tidyverse)
 
-obj <- readRDS("/scratch/project_2012655/pau/Organoids_MergedRawCounts.RDS")
+
 obj <- NormalizeData(obj, normalization.method = "LogNormalize", scale.factor = 10000)
 
-## Find highly variable features
+
 obj <- FindVariableFeatures(obj, selection.method = "vst", nfeatures = 2000)
-
-
-# Read in the expression matrix The first row is a header row, the first column is rownames
 exp.mat <- read.table(file = "/scratch/project_2012655/pau/nestorawa_forcellcycle_expressionMatrix.txt",
                       header = TRUE, as.is = TRUE, row.names = 1)
-
-
-# A list of cell cycle markers, from Tirosh et al, 2015, is loaded with Seurat.  We can
-# segregate this list into markers of G2/M phase and markers of S phase
 s.genes <- cc.genes$s.genes
 g2m.genes <- cc.genes$g2m.genes
 
 obj <- CellCycleScoring(obj, s.features = s.genes, g2m.features = g2m.genes, set.ident = TRUE)
 
-# Decision on whether to use ccdifference or no cell cycle regression at all in “ScaleData"
 obj <- ScaleData(obj, features = rownames(obj))
 obj <- RunPCA(obj, features = VariableFeatures(object = obj))
 
-
-# Examine and visualize PCA results a few different ways
 print(obj[["pca"]], dims = 1:5, nfeatures = 5)
 VizDimLoadings(obj, dims = 1:2, reduction = "pca")
 
-## PCA plot with cells colored by 10x library
-dirProcessing <- "/scratch/project_2012655/Aurora/QC_plot01/"
 
 plotToPdf <- DimPlot(obj, reduction = "pca", pt.size = .1, group.by = 'orig.ident')+ggtitle("Before Harmony")
 pdf(file=paste0(dirProcessing,"pooled_beforeHarmony.pdf"))
 plot(plotToPdf)
 dev.off()
 
-library(harmony)
-library(tidyverse)
 
-## define batch
 
 obj$batch <- ifelse(grepl("Alz43cl2_", obj$orig.ident) | grepl("PLCG1_", obj$orig.ident), "B1", "B2")
 obj$condition <- sapply(strsplit(obj$orig.ident, "_"), function(x) paste(x[-1], collapse="_"))
 obj$donor <- sapply(strsplit(obj$orig.ident, "_"), function(x) paste(x[1], collapse="_"))
 
 
-# obj <- obj %>% 
-#   RunHarmony(c("orig.ident"), plot_convergence = TRUE)
+
 set.seed(123)
 obj <- obj %>% 
   RunHarmony(c("donor"), plot_convergence = TRUE)
@@ -68,15 +52,15 @@ pdf(file=paste0(dirProcessing,"pooled_AfterHarmony.pdf"))
 plotToPdf+plotToPdf2
 dev.off()
 
-# Use pca-corrected embeddings from harmony to produce UMAP and run clustering
 obj <- obj %>%
   RunUMAP(reduction = "harmony", dims = 1:20) %>%
   FindNeighbors(reduction = "harmony", dims = 1:10) %>%
-  FindClusters(resolution = 0.1) %>%
+  FindClusters(resolution = 0.5) %>%
   identity()
-#was 0.5 and 0.1
 
-## UMAP plot: Cells colored by unannotated  clusters
+#resolution 0.1 in Fig S1A
+
+
 plotToPdf <- DimPlot(obj, reduction = "umap", label = FALSE, pt.size = .1, group.by="condition")+theme_gray()+
   theme(plot.title=element_text(hjust=0.5, size=13, face="bold"))+
   ggtitle("Condition")+theme_bw()+facet_wrap(~condition)
@@ -114,18 +98,13 @@ dev.off()
 
 
 
-#saveRDS(obj, file="/scratch/project_2012655/pau/Organoids_notAnnotated_donor.RDS")
-saveRDS(obj, file="/scratch/project_2012655/Aurora/Organoids_notAnnotated_donor_01.RDS")
-
-
 #########
 #########
 
 
 # MILOR
 # R packages
-.libPaths(c("/projappl/project_2012655/rpackages", .libPaths()))
-libpath <- .libPaths()[1]
+
 
 library(SingleCellExperiment) 
 library(scater) 
@@ -139,76 +118,21 @@ library(ggbeeswarm)
 library(ggpubr) 
 library(RColorBrewer) 
 library(knitr) 
-
-#BiocManager::install(c("limma", "edgeR"))
 library(limma)
 library(edgeR)
-#BiocManager::install("miloR", lib = libpath)
 library(miloR)
 library(patchwork)
 
 
-#Annotated object 
-#all_first <- readRDS("/scratch/project_2012655/scRNAseq course/Downstream/all.rds")
-all <- readRDS("/scratch/project_2012655/Aurora/all_donor_annotated_05.RDS")
+#Annotated object from script 3.
 
-#all$condition <- sapply(strsplit(all$orig.ident, "_"), function(x) paste(x[-1], collapse="_"))
+######################
+#Figures 3B & S2   ###
+######################
 
-#all.sub <- all[,!(all$condition=="vasc" | all$donor=="Alz37cl2")]
-#all.sub <- all[,!(all$condition=="vasc")]
-
-
-# to sce object
 sce <- as.SingleCellExperiment(all)
-colData(sce)$Sample <- as.character(all$orig.ident)        # näyte / replikaatti
-#colData(sce)$condition <- as.character(all.sub$sampletype)     # condition (ctr/vasc/vasc_mg)
-
-
-# jos sinulla on cell type -annotaatio:
-#stopifnot(all(!is.null(all$sctype_pred)))
-
+colData(sce)$Sample <- as.character(all$orig.ident)      
 all_milo <- Milo(sce)
-
-
-## stacked barplot (proportions)
-
-# propTab <- table(colData(all_milo)$condition,  colData(all_milo)$sctype_pred)/rowSums(table(colData(all_milo)$condition,  colData(all_milo)$sctype_pred))
-# propTab <- as.data.frame(propTab)
-# colnames(propTab) <- c("Model","CellType","Proportion")
-# 
-# getPalette = colorRampPalette(brewer.pal(9, "Set1"))
-# colourCount = length(unique(propTab$CellType))
-# colVec_models <- setNames(getPalette(colourCount),
-#                           sort(unique(propTab$CellType)))
-
-# barplotStckd <- ggplot(propTab, aes(fill=CellType, x=Model, y=Proportion))+
-#   geom_bar(position="fill", stat="identity")+
-#   #facet_grid(. ~ unifiedSampleID, scales = "free_x", space = "free_x")+
-#   theme_bw()+
-#   theme(plot.title=element_text(size=18, face="bold", hjust=0.5),
-#         legend.title = element_text(size = 11, face="bold", hjust=0.5),
-#         legend.text  = element_text(size = 9),
-#         legend.key.size = unit(0.5, "lines"),
-#         axis.text.x = element_text(size=9, angle=90, vjust=0.5, hjust=1),
-#         axis.text.y = element_text(size=9),
-#         axis.title=element_text(size=11),
-#         strip.text.x = element_text(size = 10)) +
-#   guides(shape = guide_legend(override.aes = list(size = 5)),
-#          fill = guide_legend(override.aes = list(size = 5), ncol=1))+
-#   scale_fill_manual(name="Cell types",
-#                     values = colVec_models)+
-#   scale_y_continuous(labels = scales::percent, breaks=seq(0,1,0.2))+
-#   xlab("Model")+
-#   ylab("Cell type abundance [%]")
-# 
-dirQCplots <- "/scratch/project_2012655/Aurora/milor/"
-# 
-# pdf(paste0(dirQCplots,"barplotStckd_ctr_vasc_batch.pdf"))
-# plot(barplotStckd)
-# dev.off()
-# 
-
-## Barplot (numCells)
 
 sampleCellsNum <- as.data.frame(table(colData(all_milo)$condition))
 colnames(sampleCellsNum) <- c("Model", "Ncells")
@@ -225,15 +149,6 @@ barplotLines <- ggplot(sampleCellsNum, aes(x=Model, y=Ncells))+
 
 barplotLines
 
-# #SIMPLE CHECK
-# tmp <- as.data.frame(table(sce$sctype_pred))
-# colnames(tmp) <- c("Cluster", "Number of cells")
-# kable(tmp)
-# # UMAP-plotit
-
-
-
-# plotUMAP <- plotReducedDim(all_milo, colour_by="sctype_pred", dimred = "UMAP", point_size=0.1)
 
 plotUMAP2 <- plotReducedDim(all_milo, colour_by="condition",
                             dimred = "UMAP", point_size=0.3)+
@@ -287,9 +202,8 @@ design_df <- as.data.frame(colData(all_milo)[, c("Sample" ,"condition","donor")]
 
 design_df <- distinct(design_df)
 
-# Tee 1 rivi per sample
-rownames(design_df) <- design_df$Sample
 
+rownames(design_df) <- design_df$Sample
 
 
 design_df <- design_df[colnames(nhoodCounts(all_milo)), , drop = FALSE]
@@ -303,8 +217,6 @@ if(length(levels(design_df$condition)) < 2) stop("Design sisältää vähemmän 
 ## Option 1: Model all effects in contrast
 
 all_milo <- calcNhoodDistance(all_milo, d = 30, reduced.dim = "HARMONY")
-
-saveRDS(all_milo, "/scratch/project_2012655/Aurora/milor_Organoids_Annotated_donor_v7.RDS")
 
 
 
@@ -375,20 +287,20 @@ umap_pl + nh_graph_pl +
 
 all_milo <- buildNhoodGraph(all_milo)
 
-## Find cell types
+
 
 da_res1 <- annotateNhoods(all_milo, da_res1, coldata_col = "sctype_pred")
 da_res2 <- annotateNhoods(all_milo, da_res2, coldata_col = "sctype_pred")
 
-# Mixed-threshold
+
 da_res1$sctype_pred <- ifelse(da_res1$sctype_pred_fraction < 0.7, "Mixed", da_res1$sctype_pred)
 da_res2$sctype_pred <- ifelse(da_res2$sctype_pred_fraction < 0.7, "Mixed", da_res2$sctype_pred)
 
-# (valinnainen) tarkista jakauma
+
 ggplot(da_res1, aes(sctype_pred_fraction)) + geom_histogram(bins = 50)
 ggplot(da_res2, aes(sctype_pred_fraction)) + geom_histogram(bins = 50)
 
-# (valinnainen) beeswarm solutyypeittäin
+
 plotDAbeeswarm(da_res1, group.by = "sctype_pred")
 plotDAbeeswarm(da_res2, group.by = "sctype_pred")
 
@@ -412,8 +324,6 @@ ggplot(da_res2, aes(x = sctype_pred, y = logFC)) +
     y = "logFC"
   )
 
-
-# Lisää sama cell type -annotaatio kaikille kontrasteille
 res_contrasts_annot <- lapply(res_contrasts, function(df) {
   df <- annotateNhoods(all_milo, df, coldata_col = "sctype_pred")
   df$sctype_pred <- ifelse(df$sctype_pred_fraction < 0.7, "Mixed", df$sctype_pred)
@@ -424,7 +334,6 @@ allDA_annot <- do.call(rbind, res_contrasts_annot)
 rownames(allDA_annot) <- NULL
 allDA_annot$sctype_pred <- factor(allDA_annot$sctype_pred, levels=unique(allDA_annot$sctype_pred))
 
-## Find groups
 da_results <- groupNhoods(all_milo, da_res1, max.lfc.delta = 4)
 head(da_results)
 
@@ -444,8 +353,7 @@ allDA_res <- do.call("rbind", allDA_res); rownames(allDA_res) <- NULL
 
 allDA_res$NhoodGroup <- factor(allDA_res$NhoodGroup, levels=unique(allDA_res$NhoodGroup))
 
-
-##Violin plots
+#Violit plots for S2B
 
 effectSize <- ggplot(allDA_res, aes(x = contrast, y = logFC, fill = contrast)) +
   geom_violin(trim = FALSE) +

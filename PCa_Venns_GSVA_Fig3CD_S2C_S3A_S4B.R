@@ -1,8 +1,5 @@
 
 
-.libPaths(c("/projappl/project_2012655/rpackages", .libPaths()))
-libpath <- .libPaths()[1]
-
 library(SingleCellExperiment) 
 library(scater) 
 library(scran) 
@@ -19,18 +16,6 @@ library(limma)
 library(edgeR)
 library(miloR)
 library(patchwork)
-
-obj <- readRDS("/scratch/project_2012655/Aurora/all_donor_annotated_05.RDS")
-
-
-#obj_sub <- subset(obj, subset = sctype_pred == "Radial glia")
-
-#obj <- obj_sub
-
-
-
-
-# Koodi nyt RG:lle 0 & 3  HUOM!!!!! vaihda obj 
 
 
 
@@ -50,9 +35,9 @@ stopifnot(!any(names(which(table(obj$orig.ident)<10))))
 
 pseudo_obj <- AggregateExpression(
   obj,
-  group.by = "orig.ident",  # Replace with your grouping variable (e.g., sample, condition)
+  group.by = "orig.ident",  
   assays = "RNA",
-  slot = "counts",  # Use log-normalized expression instead of raw counts
+  slot = "counts",  
   return.seurat=T
 )
 
@@ -65,9 +50,11 @@ pseudo_obj$batch <- unname(obj$batch[match(pseudo_obj$orig.ident, obj$orig.ident
 pseudo_obj$condition <- unname(obj$condition[match(pseudo_obj$orig.ident, obj$orig.ident)])
 pseudo_obj$donor <- unname(obj$donor[match(pseudo_obj$orig.ident, obj$orig.ident)])
 
-###########
-## 1.PCA ##
-###########
+
+
+####################
+## 1.PCA Fig S2C##
+#################
 
 ## Find highly variable genes
 pseudo_obj <- FindVariableFeatures(pseudo_obj)
@@ -95,7 +82,7 @@ colVec <- setNames(getPalette(colourCount),
                    unique(pseudo_obj$condition))
 
 
-# version 1
+
 
 
 ##Plot just with two principal components: PC1-PC2
@@ -126,12 +113,7 @@ pseudoPCA <- ggplot(dfPca, aes(x=PC1, y=PC2, fill=condition, shape=donor, color=
     )
   )
 
-## To save plot as PDF 
-pdf(file="/scratch/project_2012655/Aurora/plots/all/plotSamples_allpseudo_PC1_PC2.pdf", width=6.5, height=6)
-plot(pseudoPCA)
-dev.off()
 
-# version 2
 
 dfPca <- dfPca %>%
   mutate(
@@ -178,12 +160,6 @@ pseudoPCA <- ggplot(dfPca, aes(x = PC1, y = PC2, fill = condition, shape = donor
     )
   )
 
-pdf(file = "/scratch/project_2012655/Aurora/plots/all/plotSamples_allpseudo_PC1_PC2a.pdf",
-    width = 6.5, height = 6)
-print(pseudoPCA)  # ggplotille mieluummin print() kuin plot()
-dev.off()
-
-
 
 
 
@@ -221,15 +197,12 @@ gridpca_first6 <- ggplot(plot_df, aes(PCx, PCy, col=condition, shape=donor)) +
   theme(axis.text.x=element_text(hjust=1, vjust=0.5, size=8, angle=90),
         axis.text.y=element_text(size=8))
 
-pdf(file="/scratch/project_2012655/Aurora/plots/all/plotSamples_allctypes_gridPCA.pdf", width=9, height=7)
-plot(gridpca_first6)
-dev.off()
 
 
 pc_pairs <- combn(paste0("PC", 1:6), 2, simplify = FALSE)
 
 
-#version 2
+
 library(dplyr)
 library(purrr)
 library(ggplot2)
@@ -274,371 +247,14 @@ gridpca_first6 <- ggplot(plot_df, aes(PCx, PCy, col = condition, shape = donor))
     axis.text.y = element_text(size = 8)
   )
 
-pdf(file="/scratch/project_2012655/Aurora/plots/all/plotSamples_allctypes_gridPCAa.pdf", width=9, height=7)
-print(gridpca_first6)
-dev.off()
-
-
-
-#####___________________________________________________________________________
-
-
-########################
-## 2.variancePartiton ##
-########################
-
-library(variancePartition)
-library(SummarizedExperiment)
-library(edgeR)
-library(limma)
-library(sva)
-
-se <- SummarizedExperiment(assays=list(counts=as.matrix(pseudo_obj@assays$RNA["counts"])),
-                           colData=pseudo_obj@meta.data)
-
-dge <- DGEList(counts=assays(se)$counts, genes=as.data.frame(mcols(se)))
-dim(dge)
-
-assays(se)$logCPM <- edgeR::cpm(dge, log=TRUE, prior.count=0.5)
-
-## Check the distribution
-
-avgexp <- rowMeans(assays(se)$logCPM)
-
-mask <- avgexp > -2
-dim(se)
-se.filt <- se[mask, ]
-dim(se.filt)
-
-dim(dge)
-dge.filt <- dge[mask, ]
-dim(dge.filt)
-
-## Copy without normalisation of dge.filt counts to use later for voomQualityWeights
-dge.filt.noTMM <- dge.filt
-
-## Renormalise again
-assays(se.filt)$logCPM <- edgeR::cpm(dge.filt, normalized.lib.sizes=TRUE,
-                                     log=TRUE, prior.count=0.5)
-
-colData(se.filt)$condition <- factor(colData(se.filt)$condition, levels=c("ctr","vasc","vasc_mg"))
-colData(se.filt)$batch <- factor(colData(se.filt)$batch, levels=c("B1","B2"))
-colData(se.filt)$donor <- factor(colData(se.filt)$donor, levels=c("Alz37cl2","Alz43cl2","PLCG1"))
-
-se.filt$condition <- relevel(se.filt$condition, ref="ctr")
-
-
-
-###################
-### without SVA ###
-###################
-
-mod <- model.matrix(~ condition + donor, colData(se.filt))
-v <- voomWithQualityWeights(dge.filt.noTMM, mod, normalize="quantile")
-
-pre_form <- ~ condition + donor
-C <- canCorPairs(pre_form, colData(se.filt))
-
-dirQCplots <- "/scratch/project_2012655/Aurora/plots/all/"
-
-# Plot correlation matrix
-# between all pairs of variables
-pdf(file=paste0(dirQCplots,"plotCorrMatrix.pdf"))
-plotCorrMatrix(C)
-dev.off()
-
-
-## Run with voomWeights (recommended)
-form <- ~ condition + donor
-varPart2 <- fitExtractVarPartModel(v, form, colData(se.filt))
-#saveRDS(varPart2, "/scratch/project_2012655/Aurora/plots/all/variancePartition_weights.RDS")
-#varPart2 <- readRDS("/scratch/project_2012655/Aurora/plots/all/variancePartition_weights.RDS")
-
-## Check colinearity
-res <- fitVarPartModel(v, form, colData(se.filt))
-col_all <- sapply(1:length(res), function(x) colinearityScore(res[[x]]))
-summary(col_all)
-
-vp2 <- sortCols(varPart2)
-pdf(file=paste0(dirQCplots,"variancePartition_voom.pdf"))
-plotVarPart(vp2)
-dev.off()
-
-mat_var2 <- as.data.frame(varPart2)
-result <- data.frame(
-  top_var = max_value <- apply(mat_var2, 1, max),
-  top_factor = colnames(mat_var2)[max.col(mat_var2)]
-)
-
- table(result$top_factor)
-# 
-# condition     donor Residuals 
-# 690     18397      1381 
-
-condition_most_explained <- subset(result, top_factor=="condition")
-condition_most_explained_ordered <- condition_most_explained[order(condition_most_explained$top_var, decreasing=T),]
-
-tmp_var2 <- as.data.frame(table(result$top_factor))
-colnames(tmp_var2) <- c("var","nGenes")
-
-tmp_var2$var <- factor(tmp_var2$var, levels=tmp_var2$var[order(tmp_var2$nGenes, decreasing=F)])
-
-pdf(file=paste0(dirQCplots,"variancePartition_mostVE_explained_noSVA.pdf"), width=6.25, height=6.25)
-ggplot(data=tmp_var2, aes(y=var, x=nGenes, fill=var))+
-  geom_bar(stat="identity", color="black")+
-  theme_bw()+
-  scale_x_continuous(labels = scales::comma_format(), limits=c(0,20000), breaks=seq(0,20000,2500))+
-  ylab("")+
-  xlab("Genes with more VE")+
-  geom_text(aes(x=nGenes, label=nGenes), hjust=-0.15, 
-            color="black", size=4)+
-  theme(axis.text=element_text(size=9, color="black"),
-        axis.title=element_text(size=15),
-        legend.position="none")+
-  scale_fill_brewer(palette="Set3")+
-  ggtitle("Top factor for VE per gene")
-dev.off()
-
-
-
-################
-### with SVA ###
-################
-
-mod <- model.matrix(~ condition + donor, colData(se.filt))
-mod0 <- model.matrix(~ 1, colData(se.filt))
-
-IQRs <- apply(assays(se.filt)$logCPM, 1, IQR)
-sv <- sva(assays(se.filt)$logCPM[IQRs > quantile(IQRs, prob=0.9), ],
-          mod=mod, mod0=mod0)
-
-cnames <- c(colnames(mod), paste0("SV", 1:sv$n))
-mod <- cbind(mod, sv$sv)
-colnames(mod) <- cnames
-head(mod, n=3)
-
-dge.filt <- estimateDisp(dge.filt, mod, robust=TRUE)
-prdf <- cut(dge.filt$prior.df, breaks=c(0, 1, 2, 3, 4, 5))
-table(prdf, useNA="always")
-
-v <- voomWithQualityWeights(dge.filt.noTMM, mod, normalize="quantile")
-
-## Run with expression matrix
-# form <- ~  treatment + disease_status
-# varPart <- fitExtractVarPartModel(assays(se.filt)$logCPM, form, colData(se.filt))
-# saveRDS(varPart, "/scratch/project_2011471/saved/variancePartition_logCPM.RDS")
-# varPart <- readRDS("/scratch/project_2011471/saved/variancePartition_logCPM.RDS")
-
-## Run with voomWeights (recommended)
-form <- ~  condition + donor + SV1 + SV2 
-
-colData(se.filt)$SV1 <- mod[, "SV1"]
-colData(se.filt)$SV2 <- mod[, "SV2"]
-
-varPart2 <- fitExtractVarPartModel(v, form, colData(se.filt))
-#saveRDS(varPart2, "/scratch/project_2012655/Aurora/plots/RG/PlotsvariancePartition_weights_withSVA.RDS")
-#varPart2 <- readRDS("/scratch/project_2012655/Aurora/plots/RG/variancePartition_weights_withSVA.RDS")
-
-## Check colinearity
-res <- fitVarPartModel(v, form, colData(se.filt))
-col_all <- sapply(1:length(res), function(x) colinearityScore(res[[x]]))
-summary(col_all)
-
-vp2 <- sortCols(varPart2)
-pdf(file=paste0(dirQCplots,"variancePartition_voom_withSVA.pdf"))
-plotVarPart(vp2)
-dev.off()
-
-mat_var2 <- as.data.frame(varPart2)
-result <- data.frame(
-  top_var = max_value <- apply(mat_var2, 1, max),
-  top_factor = colnames(mat_var2)[max.col(mat_var2)]
-)
-
-condition_most_explained <- subset(result, top_factor=="condition")
-condition_most_explained_ordered <- condition_most_explained[order(condition_most_explained$top_var, decreasing=T),]
-
-
-tmp_var2 <- as.data.frame(table(result$top_factor))
-colnames(tmp_var2) <- c("var","nGenes")
-
-tmp_var2$var <- factor(tmp_var2$var, levels=tmp_var2$var[order(tmp_var2$nGenes, decreasing=F)])
-
-pdf(file=paste0(dirQCplots,"variancePartition_mostVE_explained_withSVA.pdf"), width=6.25, height=6.25)
-ggplot(data=tmp_var2, aes(y=var, x=nGenes, fill=var))+
-  geom_bar(stat="identity", color="black")+
-  theme_bw()+
-  scale_x_continuous(labels = scales::comma_format(), limits=c(0,20000), breaks=seq(0,20000,2500))+
-  ylab("")+
-  xlab("Genes with more VE")+
-  geom_text(aes(x=nGenes, label=nGenes), hjust=-0.15, 
-            color="black", size=4)+
-  theme(axis.text.y=element_text(size=12.5, color="black"),
-        axis.text.x=element_text(size=9, color="black"),
-        axis.title=element_text(size=15),
-        legend.position="none")+
-  scale_fill_brewer(palette="Set3")
-dev.off()
-
-
-### Run GO enrichment 
-#mikä kovariaatti selittää sen ekspression varianssia eniten (eli ei DEG)
-
-library(GOstats)
-
-
-GOenrichmentAndReport <- function(geneIds, universeGeneIds,
-                                  minSize=3, maxSize=300, minCount=3,
-                                  minOddsRatio=1.5, p.value=0.05, highlightGenes=NULL, highlightStr="*%s*",
-                                  label="allDE"){
-  
-  
-  GOparams <- new("GOHyperGParams", geneIds=geneIds,
-                  universeGeneIds=universeGeneIds,
-                  annotation="org.Hs.eg.db",
-                  ontology="BP", pvalueCutoff=0.05, conditional=TRUE,
-                  minSizeCutoff=3, maxSizeCutoff=300, orCutoff=1.5,
-                  testDirection="over")
-  
-  hgOverGOBP <- hyperGTest(GOparams)
-  
-  report <- data.frame(GOBPID=as.vector(names(geneIdUniverse(hgOverGOBP))),
-                       Pvalue=pvalues(hgOverGOBP),
-                       OddsRatio=oddsRatios(hgOverGOBP),
-                       ExpCount=expectedCounts(hgOverGOBP),
-                       Count=geneCounts(hgOverGOBP),
-                       Size=universeCounts(hgOverGOBP),
-                       stringsAsFactors=FALSE)
-  
-  ## discard gene sets that do not meet a minimum and maximum number of genes
-  report <- report[report$Size >= minSize & report$Size <= maxSize, , drop=FALSE]
-  
-  ## discard gene sets that show a p.value>0.05
-  report <- report[report$Pvalue < p.value, , drop=FALSE]
-  
-  ## discard gene sets that do not satisfy the OR cutoff
-  report <- report[report$OddsRatio >= minOddsRatio & report$Count >= minCount, , drop=FALSE]
-  
-  ## apply the maximum-number-of-GO-terms-reported cutoff and sort by odds ratio
-  maxReported <- min(nrow(report))
-  report <- report[sort(report$OddsRatio, decreasing=TRUE, index.return=TRUE)$ix[1:maxReported], ]
-  
-  if (dim(report[complete.cases(report),])[1]==0){
-    message <- "No GO terms enriched"
-    print(message)
-    return(message)
-  }
-  
-  ## add the symbol and GO term description, information
-  reportGenes <- geneIdsByCategory(hgOverGOBP, report$GOBPID)
-  reportGeneSyms <- lapply(reportGenes, annotate::getSYMBOL, "org.Hs.eg.db")
-  highlightGeneMask <- lapply(reportGenes, function(x, hgenes, fmt) x %in% hgenes, highlightGenes)
-  reportGeneSyms <- mapply(function(genes, mask, fmt) ifelse(mask, sprintf(fmt, genes), genes),
-                           reportGeneSyms, highlightGeneMask, MoreArgs=list(fmt=highlightStr), SIMPLIFY=FALSE)
-  reportGeneSyms <- sapply(reportGeneSyms, paste, collapse=", ")
-  reportGenes <- sapply(reportGenes, paste, collapse=", ")
-  report <- cbind(report,
-                  Term=sapply(mget(report$GOBPID, GOstats:::GOenv("TERM")), Term),
-                  GeneSyms=reportGeneSyms,
-                  label=label)
-  rownames(report) <- NULL
-  
-  return(report)
-  
-}
-
-geneUniverse <- data.frame(symbol=rownames(se.filt))
-
-
-library(org.Hs.eg.db)
-
-tabCorr <- AnnotationDbi::select(org.Hs.eg.db, geneUniverse$symbol, "ENTREZID", "SYMBOL")
-tabCorr <- tabCorr[!is.na(tabCorr$ENTREZID),]
-tabCorr <- tabCorr[!duplicated(tabCorr$SYMBOL),]
-
-geneUniverse$entrezid <- tabCorr[match(geneUniverse$symbol,tabCorr$SYMBOL),]$ENTREZID
-geneUniverse <- subset(geneUniverse, !is.na(entrezid))
-
-
-covariates <- sort(names(table(result$top_factor))[-match(c("Residuals","SV1","SV2"),names(table(result$top_factor)))])
-
-cov_goenrich <- sapply(covariates, function(x){
-  
-  tmp <- subset(result, top_factor==x)
-  tmp <- tmp[order(tmp$top_var, decreasing=T),]
-  
-  prop_entrezid <- geneUniverse[match(rownames(tmp), geneUniverse$symbol),]$entrezid
-  prop_entrezid <- prop_entrezid[!is.na(prop_entrezid)]
-  
-  if (length(prop_entrezid)>200){
-    
-    prop_go <- GOenrichmentAndReport(prop_entrezid, geneUniverse$entrezid,
-                                     minSize=5, maxSize=300, minCount=5,
-                                     minOddsRatio=1.5, p.value=0.05, highlightGenes=NULL, highlightStr="*%s*",
-                                     label=x)
-  } else {
-    
-    prop_go <- GOenrichmentAndReport(prop_entrezid, geneUniverse$entrezid,
-                                     minSize=3, maxSize=300, minCount=3,
-                                     minOddsRatio=1.5, p.value=0.05, highlightGenes=NULL, highlightStr="*%s*",
-                                     label=x)
-  }
-  
-  
-  prop_go$ranking <- 1:dim(prop_go)[1]
-  #allres_intersect <- rbind(upreg_go[1:10,], downreg_go[1:10,])
-  prop_go$short <- prop_go$Term
-  mask_long<- nchar(prop_go$Term)>30
-  
-  
-  prop_go$short[mask_long] <- sapply(prop_go[mask_long,]$Term, function(x){
-    mask <- unlist(sapply(strsplit(x, " "), function(y) cumsum(nchar(y))>30, simplify=F))
-    sapply(strsplit(x, " "), function(y) paste0(paste0(y[!mask], collapse=" "),"\n",paste0(y[mask], collapse=" ")))
-  })
-  
-  return(prop_go)
-  
-}, simplify=F)
-
-library(tidyverse)
-
-cov_goenrich_high <- cov_goenrich
-cov_goenrich_high <- sapply(cov_goenrich_high, function(x) x[1:10,], simplify=F)
-
-cov_goenrich_high <- do.call("rbind", cov_goenrich_high)
-rownames(cov_goenrich_high) <- NULL
-
-cov_goenrich_high <- cov_goenrich_high %>%
-  group_by(label) %>%
-  mutate(short = fct_reorder(short, ranking, .desc = TRUE)) %>% 
-  ungroup()
-
-gostats_plot <- ggplot(data=cov_goenrich_high, aes(x=OddsRatio, y=short, size=Count, col=-log10(Pvalue)))+
-  theme_bw()+
-  geom_point()+
-  facet_wrap(~label, nrow=2, scales="free_x")+
-  ylab("")+xlab("Odds ratio")+
-  scale_color_viridis_c()+
-  theme(plot.title=element_text(hjust=0.5, face="bold"),
-        axis.text=element_text(size=10))+
-  facet_wrap(~label, scales="free_y")+
-  theme(axis.title.y=element_text(size=6))+
-  ggtitle("GO enrichment per covariate")+
-  geom_text(aes(y=short, x=-3, label=ranking), size=4, col="black")
-
-
-pdf(file=paste0(dirQCplots,"GOenrich_mostVE_explained.pdf"), width=12, height=4)
-plot(gostats_plot)
-dev.off()
-
-
-
-#######_________________________________________________________________________
 
 
 ##################################
-### 3. GSVA for the pathways #####
-##################################
+### 2. GSVA for the pathways   ##
+### Fig 3D,S3A (all) & S4B(RG) ##
+#################################
+
+# Continue with pseudobulked sample with all cells or RG (From stem 0)
 
 
 library(GSVA)
@@ -647,7 +263,7 @@ library(ggbeeswarm)
 library(ggpubr)
 library(tidyverse)
 library(GSEABase)
-dirQCplots <- "/scratch/project_2012655/Aurora/plots/RG/"
+
 
 # Load the GMT file
 gmt_file_c2 <- "/scratch/project_2012655/OT/msigdb/c2.all.v2026.1.Hs.symbols.gmt" 
@@ -800,9 +416,12 @@ plot(allrelevPaths_gsva2)
 dev.off()
 
 
+#################
+# Fig 3C #######
+################
 
-################################
-########### VENN + variance
+
+#VENN + variance
 
 library(Seurat)
 library(dplyr)
@@ -810,7 +429,6 @@ library(stringr)
 library(VennDiagram)
 library(ggplot2)
 
-# --- 0) Lähtödata
 
 stopifnot(all(c("condition", "orig.ident") %in% colnames(all@meta.data)))
 
@@ -845,7 +463,7 @@ res_model <- sapply(organoid_models, function(z){
       ident.1 = g1,
       ident.2 = g2,
       test.use = test.use,
-      logfc.threshold = 0,   # EI suodateta tässä, suodatetaan itse myöhemmin
+      logfc.threshold = 0,   
       min.pct = min.pct
     )
     
@@ -905,7 +523,7 @@ venn_plot_function <- function(venn_sets_named, cl1="#08306B",cl2="#2171B5",cl3=
     cex = 1.6,
     cat.cex = 1.5,
     
-    # CL1 vasen, CL2 oikea, CL3 alas (vain TEKSTI liikkuu)
+    
     cat.dist = c(0.07, 0.07, 0.07),
     
     margin = 0.1
@@ -960,8 +578,6 @@ venn_sets_named <- list(
   CL3=get_genes_dysregulated(line="CL3", model="vasc_mg")
 )
 
-
-# Siivotaan listat (tärkeää)
 venn_sets_named <- lapply(venn_sets_named, function(x) {
   unique(na.omit(as.character(x)))
 })
@@ -1215,8 +831,7 @@ dir.create(dir_plot, recursive = TRUE, showWarnings = FALSE)
 for(cond in names(GO_results)){
   for(cl in names(GO_results[[cond]])){
     for(direction in c("up","down")){
-      
-      # 🔴 käytä alkuperäistä condia
+    
       ego <- GO_results[[cond]][[cl]][[direction]]
       
       if(!is.null(ego) && nrow(as.data.frame(ego)) > 0){
@@ -1243,110 +858,6 @@ for(cond in names(GO_results)){
 
 
 
-
-# 
-# 
-# # --- 1) Subset: vain ctr
-# seu_ctr <- subset(RG, subset = condition == "ctr")
-# 
-# # --- 2) Tee cell_line = orig.identin eka osa
-# # OLETUS: orig.ident on muotoa "Alz37cl2_something" (erotin "_" )
-# # Jos erotin on esim "-" tai ".", vaihda patterni.
-# seu_ctr$cell_line <- sub("_.*$", "", seu_ctr$orig.ident)
-# 
-# # Tarkista että ryhmät löytyvät
-# table(seu_ctr$cell_line)
-# 
-# # Halutut ryhmät (tarkista kirjoitusasu!)
-# groups <- c("Alz37cl2", "Alz43cl2", "PLCG1")
-# #seu_ctr <- subset(seu_ctr, subset = cell_line %in% groups)
-# 
-# # aseta identiteetit
-# Idents(seu_ctr) <- seu_ctr$cell_line
-# Idents(seu_ctr) <- droplevels(Idents(seu_ctr))
-# 
-# # varmistus: solumäärät per ryhmä
-# print(table(Idents(seu_ctr)))
-# 
-# # --- 3) DEG-funktio
-# run_deg <- function(obj, g1, g2, fdr = 0.05, lfc = 0.25,
-#                     test.use = "wilcox", min.pct = 0.1) {
-#   
-#   
-#   
-#   res <- FindMarkers(
-#     object = obj,
-#     ident.1 = g1,
-#     ident.2 = g2,
-#     test.use = test.use,
-#     logfc.threshold = 0,   # EI suodateta tässä, suodatetaan itse myöhemmin
-#     min.pct = min.pct
-#   )
-#   res$gene <- rownames(res)
-#   
-#   # Seurat-versiosta riippuen sarakenimi voi olla avg_log2FC tai avg_logFC
-#   lfc_col <- if ("avg_log2FC" %in% colnames(res)) "avg_log2FC" else "avg_logFC"
-#   
-#   sig <- res %>%
-#     filter(!is.na(p_val_adj), p_val_adj < fdr, abs(.data[[lfc_col]]) >= lfc)
-#   
-#   list(res = res, sig = sig, sig_genes = sig$gene, lfc_col = lfc_col)
-# }
-# 
-# # --- 4) Aja kolme vertailua
-# deg_37_43 <- run_deg(seu_ctr, "Alz37cl2", "Alz43cl2")
-# deg_37_P  <- run_deg(seu_ctr, "Alz37cl2", "PLCG1")
-# deg_43_P  <- run_deg(seu_ctr, "Alz43cl2", "PLCG1")
-# 
-# 
-# 
-
-
-
-# library(VennDiagram)
-# library(grid)
-# 
-# # Uudet nimet
-# venn_sets_named <- list(
-#   CL1 = deg_37_43$sig_genes,
-#   CL2 = deg_37_P$sig_genes,
-#   CL3 = deg_43_P$sig_genes
-# )
-# 
-# # Siivotaan listat (tärkeää)
-# venn_sets_named <- lapply(venn_sets_named, function(x) {
-#   unique(na.omit(as.character(x)))
-# })
-# 
-# venn_plot <- venn.diagram(
-#   x = venn_sets_named,
-#   filename = NULL,
-#   fill = c("#08306B", "#2171B5", "#6BAED6"),
-#   alpha = 0.6,
-#   col = "black",
-#   lwd = 1.2,
-# 
-#   fontfamily = "sans",
-#   cat.fontfamily = "sans",
-# 
-#   cex = 1.6,
-#   cat.cex = 1.5,
-# 
-#   # CL1 vasen, CL2 oikea, CL3 alas (vain TEKSTI liikkuu)
-#   cat.dist = c(0.07, 0.07, 0.07),
-# 
-#   margin = 0.1
-# )
-# 
-# grid.newpage()
-# grid.draw(venn_plot)
-# 
-# # --- 7) (valinnainen) tallenna tulokset
-# dir_out <- "/scratch/project_2012655/Aurora/plots/RG/"
-# dir.create(dir_out, recursive = TRUE, showWarnings = FALSE)
-# 
-# ggsave(file.path(dir_out, "Venn_CTR_celllineRG_DEGs.pdf"), venn_plot, width = 7, height = 6)
-# 
 
 
 

@@ -2,22 +2,12 @@
 title: "Single-cell RNAseq R course 2025 - Session 4"
 author: "Matías Marín Falco and Andrew Erickson"
 date: "2025-02-26"
-output:
-  md_document:
-    variant: markdown_github
+Modified: Aurora Halkoluoto 24.4.2026
 ---
-#TÄTÄ KÄYTETÄÄN ERITYISESTI SCTYPE
+SCTYPE
 [Dataset original publication](https://www.science.org/doi/10.1126/sciadv.abe4038)
 
-# Overview
 
-In any single-cell experiment where mixed populations are expected, a very important task is to identify the cell types (and/or cell states) that are present. Here, we will explore different methods for doing this:
-
-# Manual annotation of cell types
-
-Once the dataset is correctly preprocessed and batch effects are eliminated from the data, after performing dimensionality reduction, the cells from the same cell type tend to cluster together. We can use this property to manually check and annotate the clusters we have previously identified.
-
-First we will load the seurat object where we have normalized and clustered our data. We will also load the results from the differential expression analysis, where we identified which genes are specifically expressed on each cluster (´FindAllMarkers´ function).
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = FALSE)
@@ -44,32 +34,20 @@ library(scales)
 #SCTYPE FROM HERE --->
 ```{r prepare sctype}
 
-#all <- readRDS("/scratch/project_2012655/pau/Organoids_notAnnotated_donor.RDS")
-#all1 <- all
-
 
 # load gene set preparation function
 source("https://raw.githubusercontent.com/IanevskiAleksandr/sc-type/master/R/gene_sets_prepare.R")
 # load cell type annotation function
 source("https://raw.githubusercontent.com/IanevskiAleksandr/sc-type/master/R/sctype_score_.R")
 
-#db_ = "https://raw.githubusercontent.com/IanevskiAleksandr/sc-type/master/ScTypeDB_full.xlsx"
-#tissue = "Immune system" # e.g. Immune system,Pancreas,Liver,Eye,Kidney,Brain,Lung,Adrenal,Heart,Intestine,Muscle,Placenta,Spleen,Stomach,Thymus 
-
-# prepare gene sets
 
 
-gs_list <- gene_sets_prepare("/scratch/project_2012655/Aurora/celltype_markers_rough_v6.xlsx", "vico")
 
-#v14 or rough_v6
-
-#gs_list <- list(
-#  gs_positive = celltype_markers,
-#  gs_negative = NULL  # jos et käytä negatiivisia markereita
+gs_list <- gene_sets_prepare("/celltype_markers_rough_v6.xlsx", "vico")
 
 
 ```
-Now we can use `sctype_score` function to score cells according the positive (genes known to be expressed in a cell type) and negative (genes we know are NOT expressed in a cell type) markers.
+
 
 ```{r run sctype}
 scRNAseqMatrix = all@assays$RNA$scale.data
@@ -80,9 +58,6 @@ es.max = sctype_score(scRNAseqData = scRNAseqMatrix, scaled = TRUE,
 
 ```
 
-Note that `scRNAseqData` parameter should correspond to your input scRNA-seq matrix.
-
-After getting the cell-type by cell score matrix we can summarize the cell-types by cluster. However it is important to recognize when the classifier is not sure about the cell type prediction and not just randomly assign a cell type.
 
 ```{r sctype clusters}
 cL_results = do.call("rbind", lapply(
@@ -120,10 +95,7 @@ all$sctype_pred<-sctype_scores[as.character(all$seurat_clusters),"type"]
 all$sctype_pred[all$sctype_pred == "Unknown"] <- "Other"
 ```
 
-all$sampletype <- case_when(
-  all$orig.ident %in% c("Alz43cl2_ctr", "Alz37cl2_ctr", "PLCG1_ctr") ~ "ctr",
-  all$orig.ident %in% c("Alz43cl2_vasc", "Alz37cl2_vasc", "PLCG1_vasc") ~ "vasc",
-  all$orig.ident %in% c("Alz43cl2_vasc_mg", "Alz37cl2_vasc_mg", "PLCG1_vasc_mg") ~ "vasc_mg")
+
 ```{r} 
 ctr <- subset(all, subset = condition == "ctr")
 vasc <- subset(all, subset = condition == "vasc")
@@ -131,7 +103,7 @@ vasc_mg <- subset(all, subset = condition == "vasc_mg")
 
 ```
 Let's plot the results:
-```{r conditions separately}
+```{r all, conditions separately FIG 2A, S1A,C-D}
 celltype_colors <- c(
   "Endothelial" = "#E41A1C",        
   "Fibroblast" = "#1E90FF",         
@@ -181,7 +153,7 @@ DimPlot(
                  "Alz37cl2_ctr"      = "cCO_C1",
                  "Alz37cl2_vasc"     = "vCO_C1",
                  "Alz37cl2_vasc_mg"  = "viCO_C1",
-                 "Alz43cl2_ctr"      = "cCO_C2",   # <- huom: ALz vs Alz korjattu
+                 "Alz43cl2_ctr"      = "cCO_C2",  
                  "Alz43cl2_vasc"     = "vCO_C2",
                  "Alz43cl2_vasc_mg"  = "viCO_C2",
                  "PLCG1_ctr"         = "cCO_C3",
@@ -202,10 +174,10 @@ DimPlot(
 
 ```
 
-```{r stacked plots}
+```{r stacked plots, FIG3A}
 df <- data.frame(
   condition   = all$condition,
-  orig_ident  = all$orig.ident,   # <-- huom: orig.ident
+  orig_ident  = all$orig.ident,   
   sctype_pred = all$sctype_pred
 )
 
@@ -229,7 +201,7 @@ p <- ggplot(df_summary, aes(x = orig_ident, y = freq, fill = sctype_pred)) +
     expand = expansion(mult = c(0, 0.02))
   ) +
 
-  # X-akselin labelit
+
   scale_x_discrete(labels = c(
     "Alz37cl2_ctr" = "CL1",
     "Alz37cl2_vasc" = "CL1",
@@ -242,7 +214,7 @@ p <- ggplot(df_summary, aes(x = orig_ident, y = freq, fill = sctype_pred)) +
     "PLCG1_vasc_mg" = "CL3"
   )) +
 
-  # Facetit conditionin mukaan (ggh4x facet_grid2 + strip_themed)
+  
   ggh4x::facet_grid2(
     . ~ condition,
     scales = "free_x",
@@ -264,7 +236,7 @@ p <- ggplot(df_summary, aes(x = orig_ident, y = freq, fill = sctype_pred)) +
     )
   ) +
 
-  # Värit solutyypeille
+  
   scale_fill_manual(values = c(
     "Endothelial" = "#E41A1C",
     "Fibroblast" = "#1E90FF",
@@ -296,11 +268,10 @@ p <- ggplot(df_summary, aes(x = orig_ident, y = freq, fill = sctype_pred)) +
     panel.grid.major.x = element_blank(),
     axis.text.x = element_text(angle = 45, hjust = 1),
     strip.text = element_text(face = "bold", colour = "black"),
-    # strip.background jätetään pois/NA, koska ggh4x hoitaa taustan
+    
     legend.position = "right", 
-  legend.text  = element_text(size = 12),   # cell type -nimet
-  legend.title = element_text(size = 15)    # "Cell type" -otsikko
-  )
+  legend.text  = element_text(size = 12),   
+  legend.title = element_text(size = 15)    
 
 p
 ```
@@ -311,20 +282,17 @@ library(dplyr)
 library(openxlsx)
 library(Seurat)
 
-# 1. Hae metadata
 df <- FetchData(all, vars = c("condition", "orig.ident", "sctype_pred"))
 
-# jos sctype_pred on lista, pakotetaan characteriksi
+
 if (is.list(df$sctype_pred)) {
   df$sctype_pred <- as.character(unlist(df$sctype_pred))
 }
 
-# ---------------------------
-# 2. Prosentit PER SAMPLE
-# ---------------------------
+-
 df_sample <- df %>%
   group_by(condition, orig.ident, sctype_pred) %>%
-  summarise(n = n(), .groups = "drop") %>%   # <- count korvattu summarisella
+  summarise(n = n(), .groups = "drop") %>%  
   group_by(condition, orig.ident) %>%
   mutate(
     freq = n / sum(n),
@@ -332,9 +300,7 @@ df_sample <- df %>%
   ) %>%
   ungroup()
 
-# ---------------------------
-# 3. Prosentit PER CONDITION
-# ---------------------------
+
 df_condition <- df %>%
   group_by(condition, sctype_pred) %>%
   summarise(n = n(), .groups = "drop") %>%
@@ -345,17 +311,9 @@ df_condition <- df %>%
   ) %>%
   ungroup()
 
-# ---------------------------
-# 4. Näytä taulukot
-# ---------------------------
-View(df_sample)
+
 View(df_condition)
 
-# ---------------------------
-# 5. Tallenna CSV
-# ---------------------------
-write.csv(df_sample, "/scratch/project_2012655/Aurora/df_sample_percent_05.csv", row.names = FALSE)
-write.csv(df_condition, "/scratch/project_2012655/Aurora/df_condition_percent_05.csv", row.names = FALSE)
 
 
 
