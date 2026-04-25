@@ -10,7 +10,7 @@
 module purge
 module load tykky
 
-export PATH="/scratch/tykky_env/renv/bin:$PATH"
+export PATH="/scratch/tykky_envs/renv_tradeSeq/bin:$PATH"
 
 Rscript pseudotime_tradeSeq_run_GlutaNeuro.R
 

@@ -1,0 +1,35 @@
+channels:
+  - conda-forge
+  - bioconda
+dependencies:
+  - python=3.9
+  - r-seurat=5.0.0
+  - r-clustree
+  - r-gghighlight
+  - r-ggplot2
+  - r-ggbeeswarm
+  - r-ggpubr
+  - r-rcolorbrewer
+  - r-ggraph
+  - bioconductor-genomicranges
+  - r-tidyverse
+  - r-dplyr
+  - r-purrr
+  - r-cowplot
+  - r-readxl
+  - r-terra
+  - r-monocle3
+  - r-stringr
+  - r-ggrastr
+  - r-ggthemes
+  - r-tidytext
+  - r-coin
+  - r-harmony
+  - bioconductor-milor
+  - r-gprofiler2
+  - bioconductor-biomart
+  - bioconductor-annotationhub
+  - bioconductor-org.hs.eg.db
+  - bioconductor-gseabase
+  - bioconductor-gsva
+  - bioconductor-tradeseq
