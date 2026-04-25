@@ -1,4 +1,4 @@
-.libPaths(c("/projappl/project_2012655/rpackages", .libPaths()))
+.libPaths(c("/projappl/project_viCO/rpackages", .libPaths()))
 libpath <- .libPaths()[1]
 
 library(SingleCellExperiment)
@@ -22,13 +22,13 @@ library(tidyverse)
 library(patchwork)
 
 
-pathToOutput <- "/scratch/project_2012655/pau/saved/scanpy/output/"
+pathToOutput <- "saved/scanpy/output/"
 branchTag <- "glutamatergicN"
 
 alldonors <- dir(pathToOutput)[grepl("Tradeseq.glutamatergicN.", dir(pathToOutput))]
 alldonors <- gsub(".tsv","",gsub("Tradeseq.glutamatergicN.","",alldonors))
 
-rootDir <- "/scratch/project_2012655/pau/saved/scanpy/figures/"
+rootDir <- "saved/scanpy/figures/"
 
 sapply(alldonors, function(x){
   
