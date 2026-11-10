@@ -20,7 +20,7 @@ library(patchwork)
 #Pseudobulk per sample, all cells
 
 ###################
-## Fig S3A ########
+## Fig S3B ########
 ##################
 
 
