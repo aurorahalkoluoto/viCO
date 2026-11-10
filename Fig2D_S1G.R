@@ -1,4 +1,4 @@
-# Sparse pseudobulk korrelaatio atlas vs organoid 
+# Sparse pseudobulk correlation atlas vs organoid dataset 
 # Fig2D, Sup1B
 
 
