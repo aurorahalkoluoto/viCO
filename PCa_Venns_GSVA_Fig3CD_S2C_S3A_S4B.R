@@ -28,7 +28,6 @@ library(patchwork)
 ##############################
 
 ## Sample: Each donor in the three conditions (9 samples). Cell types are ignored
-## The sample is treaten like a juice with all the fruits/cell types
 
 ## Check that at least all samples have 10 cells
 stopifnot(!any(names(which(table(obj$orig.ident)<10))))
@@ -53,7 +52,7 @@ pseudo_obj$donor <- unname(obj$donor[match(pseudo_obj$orig.ident, obj$orig.ident
 
 
 ####################
-## 1.PCA Fig S2C##
+## 1.PCA Fig S2E##
 #################
 
 ## Find highly variable genes
@@ -222,11 +221,11 @@ plot_df$sampleId <- gsub("\\..+","", rownames(plot_df))
 plot_df$condition <- dfPca[match(plot_df$sampleId, dfPca$sampleId), ]$condition
 plot_df$donor     <- dfPca[match(plot_df$sampleId, dfPca$sampleId), ]$donor
 
-# Factor order (suositeltava)
+# Factor order 
 plot_df$condition <- factor(plot_df$condition, levels = c("cCO","vCO","viCO"))
 plot_df$donor <- factor(plot_df$donor, levels = c("CL1","CL2","CL3"))
 
-# Samat värit kuin aiemmin (mutta color-estetiikkaan ilman alpha-haalistusta)
+# colors
 colVec_line <- c(
   "cCO"  = "#0072B2",
   "vCO"  = "#D55E00",
@@ -532,16 +531,12 @@ venn_plot_function <- function(venn_sets_named, cl1="#08306B",cl2="#2171B5",cl3=
   grid.newpage()
   grid.draw(venn_plot)
   
-  # --- 7) (valinnainen) tallenna tulokset
-  dir_out <- "/scratch/project_2012655/Aurora/plots/RG"
-  dir.create(dir_out, recursive = TRUE, showWarnings = FALSE)
-  
-  ggsave(file.path(dir_out, nameFile), venn_plot, width = 7, height = 6)
+ 
 }
   
   
 
-## cCO (RG) -dysregulated
+## cCO (RG) 
 
 venn_sets_named <- list(
   CL1=get_genes_dysregulated(line="CL1", model="ctr"),
@@ -556,7 +551,7 @@ venn_sets_named <- lapply(venn_sets_named, function(x) {
 venn_plot_function(venn_sets_named, cl1="#08306B",cl2="#2171B5",cl3="#6BAED6", nameFile="Venn_CTR_celllineRG_DEGs.pdf")
   
 
-## vCO (RG) -dysregulated
+## vCO (RG) 
 venn_sets_named <- list(
   CL1=get_genes_dysregulated(line="CL1", model="vasc"),
   CL2=get_genes_dysregulated(line="CL2", model="vasc"),
@@ -570,7 +565,7 @@ venn_sets_named <- lapply(venn_sets_named, function(x) {
 venn_plot_function(venn_sets_named, cl1="#fdd7b5",cl2="#e89166",cl3="#b17d68", nameFile="Venn_vCO_celllineRG_DEGs.pdf")
 
 
-## viCO (RG) -dysregulated
+## viCO (RG) 
 
 venn_sets_named <- list(
   CL1=get_genes_dysregulated(line="CL1", model="vasc_mg"),
