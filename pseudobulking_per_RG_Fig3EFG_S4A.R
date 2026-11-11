@@ -15,9 +15,8 @@ library(edgeR)
 library(miloR)
 library(patchwork)
 
-#################
 #Fig 3E-F, S4A##
-#################
+
 
 obj2 <- readRDS()
 
@@ -345,8 +344,7 @@ geneUniverse$entrezid <- tabCorr[match(geneUniverse$symbol,tabCorr$SYMBOL),]$ENT
 geneUniverse <- subset(geneUniverse, !is.na(entrezid))
 
 
-
-## function needed
+#function
 
 library(GOstats)
 
@@ -532,11 +530,8 @@ pdf(file=paste0(dirQCplots,"GOenrich_DE_RG.pdf"), width=8, height=6)
 plot(gostats_plot)
 dev.off()
 
-###############
+
 ## FIGURE 3G ##
-###############
-
-
 # HEATMAP genes RG
 
 #==============================
@@ -569,14 +564,12 @@ genes_use <- c(
 cond_levels <- c("ctr","vasc","vasc_mg")
 cond_disp   <- c("ctr"="cCO", "vasc"="vCO", "vasc_mg"="viCO")
 
-# ===============================
-# 0) checks
-# ===============================
+
 stopifnot(exists("pseudo_obj_sub_RG"), inherits(pseudo_obj_sub_RG, "Seurat"))
 
-# ===============================
+
 # 1) Pseudobulk counts + metadata (RG)
-# ===============================
+
 meta <- pseudo_obj_sub_RG@meta.data
 req_cols <- c("condition","orig.ident")
 miss <- setdiff(req_cols, colnames(meta))
@@ -601,16 +594,16 @@ meta$cellline <- dplyr::case_when(
 )
 meta$cellline <- factor(meta$cellline, levels = c("CL1","CL2","CL3"))
 
-# ===============================
+
 # 2) EXPRESSION = logCPM from counts (edgeR)
-# ===============================
+
 y <- DGEList(counts = counts)
 y <- calcNormFactors(y)
 logCPM <- cpm(y, log = TRUE, prior.count = 1)  # genes x pseudobulk samples
 
-# ===============================
+
 # 3) Long df: gene x (cellline, condition)
-# ===============================
+
 genes_present <- intersect(genes_use, rownames(logCPM))
 if (length(genes_present) == 0) stop("None of the requested genes found in logCPM rownames.")
 
@@ -630,9 +623,9 @@ heat_df <- logCPM[genes_present, , drop = FALSE] %>%
 lims <- quantile(heat_df$expr, probs = c(0.05, 0.95), na.rm = TRUE)
 
 
-# ===============================
+
 # ADD: RG cell counts per (cellline x condition)
-# ===============================
+
 rg_counts <- obj_sub@meta.data %>%
   filter(sctype_pred == "Radial glia") %>%
   mutate(
@@ -649,9 +642,9 @@ rg_counts <- obj_sub@meta.data %>%
   group_by(cellline, condition) %>%
   summarise(n_RG = n(), .groups = "drop")
 
-# ===============================
+
 # 4) Plot: TOP = CL facets, BOTTOM = condition only
-# ===============================
+
 p <- ggplot(heat_df, aes(x = condition, y = gene, fill = expr)) +
   geom_tile(color = "black", linewidth = 0.1) +
   ggh4x::facet_grid2(
