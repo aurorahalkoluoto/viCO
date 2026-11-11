@@ -6,7 +6,7 @@ obj <- NormalizeData(obj, normalization.method = "LogNormalize", scale.factor = 
 
 
 obj <- FindVariableFeatures(obj, selection.method = "vst", nfeatures = 2000)
-exp.mat <- read.table(file = "/scratch/project_2012655/pau/nestorawa_forcellcycle_expressionMatrix.txt",
+exp.mat <- read.table(file = "/nestorawa_forcellcycle_expressionMatrix.txt",
                       header = TRUE, as.is = TRUE, row.names = 1)
 s.genes <- cc.genes$s.genes
 g2m.genes <- cc.genes$g2m.genes
@@ -124,7 +124,7 @@ library(miloR)
 library(patchwork)
 
 
-#Annotated object from script 3.
+
 
 ######################
 #Figures 3B & S2   ###
@@ -214,7 +214,7 @@ message("Condition levels after ordering:")
 print(table(design_df$condition))
 if(length(levels(design_df$condition)) < 2) stop("Design sisältää vähemmän kuin 2 condition-tasoa; differential abundance ei voi toimia.")
 
-## Option 1: Model all effects in contrast
+##  Model all effects in contrast
 
 all_milo <- calcNhoodDistance(all_milo, d = 30, reduced.dim = "HARMONY")
 
