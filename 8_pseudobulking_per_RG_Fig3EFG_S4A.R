@@ -534,7 +534,6 @@ dev.off()
 ## FIGURE 3G ##
 # HEATMAP genes RG
 
-#==============================
 
 suppressPackageStartupMessages({
   library(Seurat)
@@ -549,7 +548,7 @@ suppressPackageStartupMessages({
 })
 
 # ---- paths
-dirQCplots <- "/scratch/project_2012655/Aurora/plots/RG/"
+dirQCplots <- ""
 dir.create(dirQCplots, recursive = TRUE, showWarnings = FALSE)
 out_pdf <- file.path(dirQCplots, "heatmap_RG_markers_logCPM_facetsCL_xConditionOnly.pdf")
 
@@ -643,7 +642,7 @@ rg_counts <- obj_sub@meta.data %>%
   summarise(n_RG = n(), .groups = "drop")
 
 
-# 4) Plot: TOP = CL facets, BOTTOM = condition only
+# 4) Plot
 
 p <- ggplot(heat_df, aes(x = condition, y = gene, fill = expr)) +
   geom_tile(color = "black", linewidth = 0.1) +
