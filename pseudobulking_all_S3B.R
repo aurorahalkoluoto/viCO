@@ -19,9 +19,8 @@ library(patchwork)
 
 #Pseudobulk per sample, all cells
 
-###################
 ## Fig S3B ########
-##################
+
 
 
 stopifnot(!any(names(which(table(obj$orig.ident)<10))))
@@ -118,7 +117,8 @@ resFit_conditionvasc_mg <- topTable(fit, coef="conditionvasc_mg", n=Inf)
 
 
 
-### volcanoPlot
+### volcanoPlot and MAplot
+#data not shown in the paper
 
 library(ggrepel)
 
@@ -243,6 +243,7 @@ pdf(file=paste0(dirQCplots,"MAPlot_proportionFit_vico.pdf"),  width=8, height=7)
 plot(MAplot)
 dev.off()
 
+#GO analysis
 
 geneUniverse <- data.frame(symbol=rownames(se.filt))
 
