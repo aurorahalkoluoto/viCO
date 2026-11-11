@@ -1,5 +1,5 @@
-# Sparse pseudobulk correlation atlas vs organoid dataset 
-# Fig2D, Sup1B
+# Sparse pseudobulk correlation Braut etal fetal brain atlas vs organoid dataset 
+# Fig2D, Sup1G
 
 
 library(Matrix)
