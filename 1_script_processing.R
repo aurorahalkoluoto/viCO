@@ -5,7 +5,7 @@ library(Seurat)
 library(ggplot2)
 library(scales)
 
-list_10xfiles <- read.table("/scratch/project_2012655/all10xlibs.txt")$V1
+list_10xfiles <- read.table("/all10xlibs.txt")$V1
 
 processing <- function(list_10xfiles, return.obj=T, mito=F){
   
@@ -43,7 +43,7 @@ processing <- function(list_10xfiles, return.obj=T, mito=F){
     ##QC-ribosomal content
     stopifnot(all(mean(tenXrun_seurat@meta.data$percent.ribo)>10 | mean(tenXrun_seurat@meta.data$percent.ribo)<20))
     
-    dirQCplots <- paste0("/scratch/project_2012655/pau/QCplots")
+    dirQCplots <- paste0("/QCplots")
     pdf(file=paste0(dirQCplots,"QCplot_",idDef, ".pdf"))
     plot(qcplot1)
     dev.off()
@@ -90,7 +90,7 @@ names(allobj) <- sapply(strsplit(names(allobj),"/"), function(x) x[length(x)])
 
 
 
-saveRDS(allobj, file="/scratch/project_2012655/pau/allLibraries_notMerged_list.RDS")
+saveRDS(allobj, file="/allLibraries_notMerged_list.RDS")
 
 
 nCountQC <- processing(list_10xfiles, return.obj=F, mito=F)
@@ -102,8 +102,8 @@ mitoQC <- do.call("rbind", mitoQC)
 rownames(mitoQC) <- NULL
 
 
-saveRDS(nCountQC, file="/scratch/project_2012655/pau/qc_nFeat.RDS")
-saveRDS(mitoQC, file="/scratch/project_2012655/pau/qc_mito.RDS")
+saveRDS(nCountQC, file="/qc_nFeat.RDS")
+saveRDS(mitoQC, file="/qc_mito.RDS")
 
 
 featuresPlot <- ggplot(nCountQC, aes(x=index, y=nFeature_RNA))+
@@ -138,7 +138,7 @@ mitoPlot <- ggplot(mitoQC, aes(x=index, y=percent.mt))+
   ylab("")+
   facet_wrap(~sample)
 
-dirQCplots <- "/scratch/project_2012655/pau/QCplots/"
+dirQCplots <- "/QCplots/"
 pdf(file=paste0(dirQCplots,"QC_numGenesPerCell.pdf"), width=10, height = 8)
 plot(featuresPlot)
 dev.off()
