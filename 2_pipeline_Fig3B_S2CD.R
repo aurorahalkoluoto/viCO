@@ -129,7 +129,8 @@ library(patchwork)
 ######################
 #Figures 3B & S2   ###
 ######################
-
+#Use annotated object from script 3_annotation_
+                    
 sce <- as.SingleCellExperiment(all)
 colData(sce)$Sample <- as.character(all$orig.ident)      
 all_milo <- Milo(sce)
