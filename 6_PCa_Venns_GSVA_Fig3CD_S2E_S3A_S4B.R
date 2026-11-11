@@ -1,5 +1,4 @@
 
-#Library
 library(SingleCellExperiment) 
 library(scater) 
 library(scran) 
@@ -54,15 +53,14 @@ pseudo_obj$donor <- unname(obj$donor[match(pseudo_obj$orig.ident, obj$orig.ident
 ## Find highly variable genes
 pseudo_obj <- FindVariableFeatures(pseudo_obj)
 
-
+##PCA analysis
 matrixForPca <- prcomp(pseudo_obj@assays$RNA["data"][VariableFeatures(pseudo_obj),], scale = FALSE)
 dfPca <- as.data.frame(matrixForPca$rotation)
 stopifnot(all(stopifnot(rownames(pseudo_obj@meta.data)==rownames(dfPca))))
-
 dfPca <- cbind(pseudo_obj@meta.data, dfPca)
 dfPca$sampleId <- factor(dfPca$orig.ident, levels=unique(sort(dfPca$orig.ident)))
 
-## Just to know how much the principle components of each PC explain (since we will plot just the first two)
+## how much the principle components of each PC explain
 explained_variance <- matrixForPca$sdev^2 / sum(matrixForPca$sdev^2)
 explained_variance_non_scientific <- format(round(explained_variance*100,2), scientific = FALSE)
 names(explained_variance_non_scientific) <- paste0("PC", 1:length(explained_variance_non_scientific))
@@ -70,7 +68,6 @@ print(explained_variance_non_scientific)
 
 
 ## Get colors for the samples 
-
 getPalette = colorRampPalette(brewer.pal(9, "Set1"))
 colourCount = length(unique(pseudo_obj$condition))
 colVec <- setNames(getPalette(colourCount),
@@ -118,7 +115,7 @@ dfPca <- dfPca %>%
                        "vasc_mg" = "viCO")
   )
 
-## --- Factor order ) ---
+## --- Factor order ---
 dfPca$donor <- factor(dfPca$donor, levels = c("CL1", "CL2", "CL3"))
 dfPca$condition <- factor(dfPca$condition, levels = c("cCO", "vCO", "viCO"))
 
@@ -149,89 +146,6 @@ pseudoPCA <- ggplot(dfPca, aes(x = PC1, y = PC2, fill = condition, shape = donor
     color = guide_legend(
       override.aes = list(shape = 21, fill = "white", stroke = 1)
     )
-  )
-
-
-## grid with PCA correlation
-
-pc_pairs <- combn(paste0("PC", 1:6), 2, simplify = FALSE)
-
-library(dplyr)
-library(purrr)
-
-plot_df <- map_dfr(pc_pairs, function(pcs) {
-  dfPca %>%
-    transmute(
-      PCx = .data[[pcs[1]]],
-      PCy = .data[[pcs[2]]],
-      PCx_name = pcs[1],
-      PCy_name = pcs[2]
-    )
-})
-
-plot_df$sampleId <- gsub("\\..+","",rownames(plot_df)) 
-plot_df$condition <- dfPca[match(plot_df$sampleId, dfPca$sampleId),]$condition
-plot_df$donor <- dfPca[match(plot_df$sampleId, dfPca$sampleId),]$donor
-
-
-gridpca_first6 <- ggplot(plot_df, aes(PCx, PCy, col=condition, shape=donor)) +
-  geom_point(size = 2.5, alpha = 0.7) +
-  facet_grid(
-    PCy_name ~ PCx_name,
-    scales = "free",
-    drop = TRUE
-  ) +
-  theme_bw()+
-  theme(axis.text.x=element_text(hjust=1, vjust=0.5, size=8, angle=90),
-        axis.text.y=element_text(size=8))
-
-
-
-pc_pairs <- combn(paste0("PC", 1:6), 2, simplify = FALSE)
-
-
-library(dplyr)
-library(purrr)
-library(ggplot2)
-library(scales)
-
-plot_df <- map_dfr(pc_pairs, function(pcs) {
-  dfPca %>%
-    transmute(
-      PCx = .data[[pcs[1]]],
-      PCy = .data[[pcs[2]]],
-      PCx_name = pcs[1],
-      PCy_name = pcs[2]
-    )
-})
-
-plot_df$sampleId <- gsub("\\..+","", rownames(plot_df))
-plot_df$condition <- dfPca[match(plot_df$sampleId, dfPca$sampleId), ]$condition
-plot_df$donor     <- dfPca[match(plot_df$sampleId, dfPca$sampleId), ]$donor
-
-# Factor order 
-plot_df$condition <- factor(plot_df$condition, levels = c("cCO","vCO","viCO"))
-plot_df$donor <- factor(plot_df$donor, levels = c("CL1","CL2","CL3"))
-
-# colors
-colVec_line <- c(
-  "cCO"  = "#0072B2",
-  "vCO"  = "#D55E00",
-  "viCO" = "#7B3294"
-)
-
-gridpca_first6 <- ggplot(plot_df, aes(PCx, PCy, col = condition, shape = donor)) +
-  geom_point(size = 2.5, alpha = 0.7) +
-  facet_grid(
-    PCy_name ~ PCx_name,
-    scales = "free",
-    drop = TRUE
-  ) +
-  theme_bw() +
-  scale_color_manual(name = "Condition", values = colVec_line) +
-  theme(
-    axis.text.x = element_text(hjust = 1, vjust = 0.5, size = 8, angle = 90),
-    axis.text.y = element_text(size = 8)
   )
 
 
@@ -405,7 +319,7 @@ dev.off()
 
 
 # Fig 3C #######
-#VENN + variance
+#VENN + donor variation
 
 library(Seurat)
 library(dplyr)
@@ -704,145 +618,6 @@ venn_sets_named_down <- lapply(venn_sets_named_down, function(x) {
 
 venn_plot_function_direction(venn_sets_named_up, cl1="#8b65b0",cl2="#a696c7",cl3="#d7d8e9", nameFile="Venn_viCO_celllineRG_DEGs_upregulated.pdf")
 venn_plot_function(venn_sets_named_down, cl1="#8b65b0",cl2="#a696c7",cl3="#d7d8e9",nameFile="Venn_viCO_celllineRG_DEGs_downregulated.pdf")
-
-
-
-# GO 
-
-library(clusterProfiler)
-library(org.Hs.eg.db)
-
-
-run_GO <- function(genes){
-  
-  genes <- unique(na.omit(as.character(genes)))
-  
-  if(length(genes) < 10){
-    message("Too few genes, skipping GO")
-    return(NULL)
-  }
-  
-  gene_df <- tryCatch({
-    bitr(genes,
-         fromType = "SYMBOL",
-         toType = "ENTREZID",
-         OrgDb = org.Hs.eg.db)
-  }, error = function(e) return(NULL))
-  
-  if(is.null(gene_df) || nrow(gene_df) < 10){
-    message("Gene conversion failed or too few mapped genes")
-    return(NULL)
-  }
-  
-  ego <- tryCatch({
-    enrichGO(
-      gene          = gene_df$ENTREZID,
-      OrgDb         = org.Hs.eg.db,
-      ont           = "BP",
-      pAdjustMethod = "BH",
-      pvalueCutoff  = 0.05,
-      readable      = TRUE
-    )
-  }, error = function(e) return(NULL))
-  
-  return(ego)
-}
-
-
-
-
-conditions <- c("ctr", "vasc", "vasc_mg")
-lines <- c("CL1", "CL2", "CL3")
-
-GO_results <- list()
-
-for(cond in conditions){
-  
-  GO_results[[cond]] <- list()
-  
-  for(cl in lines){
-    
-    cat("Running GO:", cond, cl, "\n")
-    
-    genes_up <- get_genes_upregulated(cl, cond)
-    genes_down <- get_genes_downregulated(cl, cond)
-    
-    GO_results[[cond]][[cl]] <- list(
-      up = run_GO(genes_up),
-      down = run_GO(genes_down)
-    )
-  }
-}
-
-
-dir_go <- "/scratch/project_2012655/Aurora/plots/RG/GO"
-dir.create(dir_go, recursive = TRUE, showWarnings = FALSE)
-
-for(cond in names(GO_results)){
-  for(cl in names(GO_results[[cond]])){
-    for(direction in c("up","down")){
-      
-      ego <- GO_results[[cond]][[cl]][[direction]]
-      
-      if(!is.null(ego)){
-        fname <- paste0("GO_", cond, "_", cl, "_", direction, ".csv")
-        write.csv(as.data.frame(ego),
-                  file = file.path(dir_go, fname),
-                  row.names = FALSE)
-      }
-    }
-  }
-}
-
-
-condition_map <- c(
-  ctr = "cCO",
-  vasc = "vCO",
-  vasc_mg = "viCO"
-)
-
-dir_plot <- "/scratch/project_2012655/Aurora/plots/RG/GO"
-dir.create(dir_plot, recursive = TRUE, showWarnings = FALSE)
-
-for(cond in names(GO_results)){
-  for(cl in names(GO_results[[cond]])){
-    for(direction in c("up","down")){
-    
-      ego <- GO_results[[cond]][[cl]][[direction]]
-      
-      if(!is.null(ego) && nrow(as.data.frame(ego)) > 0){
-        
-        pdf(file.path(dir_plot,
-                      paste0("GO_", condition_map[cond], "_", cl, "_", direction, ".pdf")),
-            width = 7, height = 6)
-        
-        tryCatch({
-          print(dotplot(ego, showCategory = 15) +
-                  ggtitle(paste(condition_map[cond], cl, direction)))
-        }, error = function(e){
-          message("Plot failed: ", cond, cl, direction)
-        })
-        
-        dev.off()
-      }
-    }
-  }
-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
