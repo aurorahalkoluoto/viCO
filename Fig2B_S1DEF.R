@@ -81,7 +81,7 @@ p <- ggplot(dp_data, aes(x = id, y = gene)) +
 p
 
 
-#P2RY12 analysis
+#P2RY12 analysis, S1DEF
 
 library(Seurat)
 library(ggplot2)
