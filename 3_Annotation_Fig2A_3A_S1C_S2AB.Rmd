@@ -15,9 +15,7 @@ knitr::opts_chunk$set(echo = FALSE)
 
 ```{r loading data}
 #Load packages
-.libPaths(c("/projappl/project_2012655/rpackages", .libPaths())) 
 
-libpath <- .libPaths()[1]
 
 library(Seurat)
 library(ggplot2)
@@ -43,7 +41,7 @@ source("https://raw.githubusercontent.com/IanevskiAleksandr/sc-type/master/R/sct
 
 
 
-gs_list <- gene_sets_prepare("/celltype_markers_rough_v6.xlsx", "vico")
+gs_list <- gene_sets_prepare("/celltype_markers_v6.xlsx", "vico")
 
 
 ```
@@ -318,38 +316,4 @@ View(df_condition)
 
 
 ```
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
