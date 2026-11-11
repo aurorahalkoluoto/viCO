@@ -1,5 +1,5 @@
 
-
+#Library
 library(SingleCellExperiment) 
 library(scater) 
 library(scran) 
@@ -21,11 +21,8 @@ library(patchwork)
 
 
 
-
-
-###############################
 ## 0. Pseudobulk per sample ## 
-##############################
+
 
 ## Sample: Each donor in the three conditions (9 samples). Cell types are ignored
 
@@ -51,9 +48,8 @@ pseudo_obj$donor <- unname(obj$donor[match(pseudo_obj$orig.ident, obj$orig.ident
 
 
 
-####################
 ## 1.PCA Fig S2E##
-#################
+
 
 ## Find highly variable genes
 pseudo_obj <- FindVariableFeatures(pseudo_obj)
@@ -73,7 +69,7 @@ names(explained_variance_non_scientific) <- paste0("PC", 1:length(explained_vari
 print(explained_variance_non_scientific)
 
 
-## Get colors for the samples (I think in your case they are 12)
+## Get colors for the samples 
 
 getPalette = colorRampPalette(brewer.pal(9, "Set1"))
 colourCount = length(unique(pseudo_obj$condition))
@@ -81,10 +77,7 @@ colVec <- setNames(getPalette(colourCount),
                    unique(pseudo_obj$condition))
 
 
-
-
-
-##Plot just with two principal components: PC1-PC2
+##Plot with two principal components: PC1-PC2
 pseudoPCA <- ggplot(dfPca, aes(x=PC1, y=PC2, fill=condition, shape=donor, color=batch))+
   geom_point(size=5,stroke=1)+
   theme_bw()+
@@ -113,7 +106,6 @@ pseudoPCA <- ggplot(dfPca, aes(x=PC1, y=PC2, fill=condition, shape=donor, color=
   )
 
 
-
 dfPca <- dfPca %>%
   mutate(
     donor = recode(donor,
@@ -126,7 +118,7 @@ dfPca <- dfPca %>%
                        "vasc_mg" = "viCO")
   )
 
-## --- Factor order (optional but recommended) ---
+## --- Factor order ) ---
 dfPca$donor <- factor(dfPca$donor, levels = c("CL1", "CL2", "CL3"))
 dfPca$condition <- factor(dfPca$condition, levels = c("cCO", "vCO", "viCO"))
 
@@ -158,9 +150,6 @@ pseudoPCA <- ggplot(dfPca, aes(x = PC1, y = PC2, fill = condition, shape = donor
       override.aes = list(shape = 21, fill = "white", stroke = 1)
     )
   )
-
-
-
 
 
 ## grid with PCA correlation
@@ -199,7 +188,6 @@ gridpca_first6 <- ggplot(plot_df, aes(PCx, PCy, col=condition, shape=donor)) +
 
 
 pc_pairs <- combn(paste0("PC", 1:6), 2, simplify = FALSE)
-
 
 
 library(dplyr)
@@ -248,12 +236,12 @@ gridpca_first6 <- ggplot(plot_df, aes(PCx, PCy, col = condition, shape = donor))
 
 
 
-##################################
+
 ### 2. GSVA for the pathways   ##
 ### Fig 3D,S3A (all) & S4B(RG) ##
-#################################
 
-# Continue with pseudobulked sample with all cells or RG (From stem 0)
+
+# Continue with pseudobulked sample with all cells (3D, S3A) or RG (S4B)
 
 
 library(GSVA)
@@ -265,9 +253,9 @@ library(GSEABase)
 
 
 # Load the GMT file
-gmt_file_c2 <- "/scratch/project_2012655/OT/msigdb/c2.all.v2026.1.Hs.symbols.gmt" 
-gmt_file_h <- "/scratch/project_2012655/OT/msigdb/h.all.v2026.1.Hs.symbols.gmt" 
-gmt_file_c5 <- "/scratch/project_2012655/OT/msigdb/c5.go.bp.v2026.1.Hs.symbols.gmt" 
+gmt_file_c2 <- "/msigdb/c2.all.v2026.1.Hs.symbols.gmt" 
+gmt_file_h <- "/msigdb/h.all.v2026.1.Hs.symbols.gmt" 
+gmt_file_c5 <- "/msigdb/c5.go.bp.v2026.1.Hs.symbols.gmt" 
 gene_sets_c2 <- getGmt(gmt_file_c2) 
 gene_sets_c5 <- getGmt(gmt_file_c5)
 gene_sets_h <- getGmt(gmt_file_h)
@@ -415,11 +403,8 @@ plot(allrelevPaths_gsva2)
 dev.off()
 
 
-#################
+
 # Fig 3C #######
-################
-
-
 #VENN + variance
 
 library(Seurat)
@@ -432,11 +417,9 @@ library(ggplot2)
 stopifnot(all(c("condition", "orig.ident") %in% colnames(all@meta.data)))
 
 RG <- subset(all, subset = sctype_pred == "Radial glia")
-RG <- subset(all, subset = sctype_pred == "Neuroblast")
 
 
-
-### iterate over "organoid model, aka condition"
+### iterate over "condition"
 organoid_models <- unique(RG$condition)
 
 res_model <- sapply(organoid_models, function(z){
@@ -615,10 +598,8 @@ venn_plot_function_direction <- function(venn_sets_named, cl1="#08306B",cl2="#21
 }
 
 
+## make the plots with upregulated and downregulated separated 
 
-#################################################################
-## make the plots with upregulated and downregulated separated ##
-#################################################################
 
 get_genes_upregulated <- function(line="CL1", model="ctr"){
   lfc_threshold <- 0.25
